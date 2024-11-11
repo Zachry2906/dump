@@ -1,16 +1,12 @@
 <?php
-include_once 'config.php';
+$host = "localhost";
+$username = "root";
+$password = "";
+$database = "novel";
 
-/**
- * Buat koneksi database
- * @return mysqli
- */
-function getConnection() {
-    $conn = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+$conn = mysqli_connect($host, $username, $password, $database);
 
-    if ($conn->connect_error) {
-        die("Koneksi database gagal: " . $conn->connect_error);
-    }
-
-    return $conn;
+if (!$conn) {
+    die("Connection failed: " . mysqli_connect_error());
 }
+?>

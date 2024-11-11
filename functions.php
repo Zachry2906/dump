@@ -1,51 +1,26 @@
 <?php
-include_once 'database.php';
 
-/**
- * Verifikasi login pengguna
- * @param string $username
- * @param string $password
- * @return bool
- */
+include "database.php";
+
 function verifyLogin($username, $password) {
-    $conn = getConnection();
-    $stmt = $conn->prepare("SELECT * FROM users WHERE username = ?");
-    $stmt->bind_param("s", $username);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows > 0) {
-        $user = $result->fetch_assoc();
-        if (password_verify($password, $user['password'])) {
-            return true;
-        }
-    }
-
-    return false;
+    global $conn;
+    $query = "SELECT * FROM users WHERE username = '$username' AND password = '$password'";
+    $result = mysqli_query($conn, $query);
+    $cek = mysqli_num_rows($result);
+    return $cek;
 }
 
-/**
- * Dapatkan daftar novel dari database
- * @return array
- */
 function getNovelList() {
-    $conn = getConnection();
-    $stmt = $conn->prepare("SELECT * FROM novels");
-    $stmt->execute();
-    $result = $stmt->get_result();
-
+    global $conn;
+    $query = "SELECT * FROM novels";
+    $result = mysqli_query($conn, $query);
     $novels = [];
-    while ($row = $result->fetch_assoc()) {
-        $novels[] = $row;
+    while ($novel = mysqli_fetch_assoc($result)) {
+        $novels[] = $novel;
     }
-
     return $novels;
 }
 
-/**
- * Dapatkan daftar genre
- * @return array
- */
 function getGenres() {
     return [
         ['code' => 'FT', 'name' => 'Fantasy'],
@@ -55,21 +30,28 @@ function getGenres() {
     ];
 }
 
-/**
- * Buat kode unik berdasarkan genre dan urutan
- * @param string $genre
- * @return string
- */
 function generateUniqueCode($genre) {
-    $conn = getConnection();
-    $stmt = $conn->prepare("SELECT COUNT(*) AS count FROM novels WHERE genre = ?");
-    $stmt->bind_param("s", $genre);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $row = $result->fetch_assoc();
+    global $conn;
 
-    $count = $row['count'] + 1;
-    return sprintf("%s%03d", $genre, $count);
+    // Ambil semua nomor kode yang sudah ada untuk genre ini
+    $query = "SELECT code FROM novels WHERE genre = '$genre' ORDER BY code";
+    $result = mysqli_query($conn, $query);
+
+    $usedNumbers = [];
+    while ($row = mysqli_fetch_assoc($result)) {
+        // Ekstrak nomor dari kode, misalnya FT001 -> 1
+        $number = (int) substr($row['code'], 2);
+        $usedNumbers[] = $number;
+    }
+
+    // Cari nomor terkecil yang belum digunakan
+    $newNumber = 1;
+    while (in_array($newNumber, $usedNumbers)) {
+        $newNumber++;
+    }
+
+    // Format kode sesuai genre dan nomor yang tersedia
+    return sprintf("%s%03d", $genre, $newNumber);
 }
 
 /**
@@ -81,10 +63,9 @@ function generateUniqueCode($genre) {
  * @return bool
  */
 function addNovel($title, $genre, $amount, $code) {
-    $conn = getConnection();
-    $stmt = $conn->prepare("INSERT INTO novels (title, genre, amount, code) VALUES (?, ?, ?, ?)");
-    $stmt->bind_param("ssds", $title, $genre, $amount, $code);
-    return $stmt->execute();
+    global $conn;
+    $query = "INSERT INTO novels (title, genre, amount, code) VALUES ('$title', '$genre', $amount, '$code')";
+    return mysqli_query($conn, $query);
 }
 
 /**
@@ -100,4 +81,23 @@ function getGenreName($genreCode) {
         }
     }
     return '';
+}
+
+function deleteNovel($id) {
+    global $conn;
+    $query = "DELETE FROM novels WHERE id = $id";
+    return mysqli_query($conn, $query);
+}
+
+function getNovelById($id) {
+    global $conn;
+    $query = "SELECT * FROM novels WHERE id = $id";
+    $result = mysqli_query($conn, $query);
+    return mysqli_fetch_assoc($result);
+}
+
+function updateNovel($id, $title, $genre, $amount) {
+    global $conn;
+    $query = "UPDATE novels SET title = '$title', genre = '$genre', amount = $amount WHERE id = $id";
+    return mysqli_query($conn, $query);
 }
